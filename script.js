@@ -3,28 +3,44 @@ const SUPABASE_KEY = "sb_publishable_thEIAybXnzRwz543iYtPSg_qAEQKw3z";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const button = document.getElementById("testButton");
-const message = document.getElementById("message");
+const contactsList = document.getElementById("contactsList");
+const saveButton = document.getElementById("saveContact");
 
-button.addEventListener("click", async () => {
-  message.textContent = "Caricamento contatti...";
+async function loadContacts() {
 
   const { data, error } = await client
     .from("contacts")
     .select("*");
 
-  console.log("DATA:", data);
-  console.log("ERROR:", error);
+  contactsList.innerHTML = "";
 
-  if (error) {
-    message.textContent = "Errore nel collegamento a Supabase.";
-    return;
-  }
+  data.forEach(contact => {
 
-  if (!data || data.length === 0) {
-    message.textContent = "Nessun contatto trovato.";
-    return;
-  }
+    const li = document.createElement("li");
 
-  message.textContent = `Trovati ${data.length} contatti. Guarda la console.`;
+    li.textContent =
+      contact.name + " - " + contact.email;
+
+    contactsList.appendChild(li);
+
+  });
+
+}
+
+saveButton.addEventListener("click", async () => {
+
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+  const note = document.getElementById("note").value;
+
+  await client
+    .from("contacts")
+    .insert([
+      { name, email, note }
+    ]);
+
+  loadContacts();
+
 });
+
+loadContacts();
