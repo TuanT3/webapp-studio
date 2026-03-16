@@ -3,44 +3,135 @@ const SUPABASE_KEY = "sb_publishable_thEIAybXnzRwz543iYtPSg_qAEQKw3z";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const contactsList = document.getElementById("contactsList");
+const nameInput = document.getElementById("name");
+const emailInput = document.getElementById("email");
+const noteInput = document.getElementById("note");
 const saveButton = document.getElementById("saveContact");
+const contactsList = document.getElementById("contactsList");
+const statusMessage = document.getElementById("statusMessage");
+
+function setStatus(message, isError = false) {
+  statusMessage.textContent = message;
+  statusMessage.style.color = isError ? "crimson" : "green";
+}
+
+function clearForm() {
+  nameInput.value = "";
+  emailInput.value = "";
+  noteInput.value = "";
+}
+
+function renderContacts(data) {
+  contactsList.innerHTML = "";
+
+  if (!data || data.length === 0) {
+    contactsList.innerHTML = "<li>Nessun contatto presente.</li>";
+    return;
+  }
+
+  data.forEach((contact) => {
+    const li = document.createElement("li");
+    li.className = "contact-item";
+
+    li.innerHTML = `
+      <div class="contact-name">${contact.name ?? ""}</div>
+      <div class="contact-meta">${contact.email ?? ""}</div>
+      <div class="contact-note">${contact.note ?? ""}</div>
+      <button class="delete-btn" data-id="${contact.id}" type="button">Elimina</button>
+    `;
+
+    contactsList.appendChild(li);
+  });
+}
 
 async function loadContacts() {
+  setStatus("Caricamento contatti...");
 
   const { data, error } = await client
     .from("contacts")
-    .select("*");
+    .select("*")
+    .order("id", { ascending: false });
 
-  contactsList.innerHTML = "";
+  console.log("LOAD DATA:", data);
+  console.log("LOAD ERROR:", error);
 
-  data.forEach(contact => {
+  if (error) {
+    setStatus("Errore nel caricamento dei contatti.", true);
+    return;
+  }
 
-    const li = document.createElement("li");
+  renderContacts(data);
+  setStatus(`Caricati ${data.length} contatti.`);
+}
 
-    li.textContent =
-      contact.name + " - " + contact.email;
+async function createContact() {
+  const name = nameInput.value.trim();
+  const email = emailInput.value.trim();
+  const note = noteInput.value.trim();
 
-    contactsList.appendChild(li);
+  if (!name || !email) {
+    setStatus("Nome ed email sono obbligatori.", true);
+    return;
+  }
 
-  });
+  setStatus("Salvataggio in corso...");
 
+  const { error } = await client
+    .from("contacts")
+    .insert([{ name, email, note }]);
+
+  console.log("INSERT ERROR:", error);
+
+  if (error) {
+    setStatus(`Errore durante il salvataggio: ${error.message}`, true);
+    return;
+  }
+
+  clearForm();
+  setStatus("Contatto salvato correttamente.");
+  await loadContacts();
+}
+
+async function deleteContact(id) {
+  setStatus("Eliminazione in corso...");
+
+  const { error } = await client
+    .from("contacts")
+    .delete()
+    .eq("id", id);
+
+  console.log("DELETE ERROR:", error);
+
+  if (error) {
+    setStatus(`Errore durante l'eliminazione: ${error.message}`, true);
+    return;
+  }
+
+  setStatus("Contatto eliminato.");
+  await loadContacts();
 }
 
 saveButton.addEventListener("click", async () => {
+  await createContact();
+});
 
-  const name = document.getElementById("name").value;
-  const email = document.getElementById("email").value;
-  const note = document.getElementById("note").value;
+contactsList.addEventListener("click", async (event) => {
+  if (!event.target.classList.contains("delete-btn")) {
+    return;
+  }
 
-  await client
-    .from("contacts")
-    .insert([
-      { name, email, note }
-    ]);
+  const id = Number(event.target.dataset.id);
 
-  loadContacts();
+  if (!id) {
+    return;
+  }
 
+  const confirmed = window.confirm("Vuoi davvero eliminare questo contatto?");
+  if (!confirmed) {
+    return;
+  }
+
+  await deleteContact(id);
 });
 
 loadContacts();

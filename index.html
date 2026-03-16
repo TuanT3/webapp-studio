@@ -9,20 +9,28 @@
 <body>
   <main class="container">
     <h1>La mia prima webapp online</h1>
-    <h2>Aggiungi contatto</h2>
-
-<input id="name" placeholder="Nome">
-<input id="email" placeholder="Email">
-<input id="note" placeholder="Note">
-
-<button id="saveContact">Salva contatto</button>
-
-<h2>Contatti</h2>
-<ul id="contactsList"></ul>
     <p>Sto imparando deploy, GitHub, Netlify e database.</p>
 
-    <button id="testButton">Cliccami</button>
-    <p id="message"></p>
+    <section class="card">
+      <h2>Aggiungi contatto</h2>
+
+      <label for="name">Nome</label>
+      <input id="name" type="text" placeholder="Es. Mario Rossi" />
+
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="Es. mario@email.com" />
+
+      <label for="note">Note</label>
+      <textarea id="note" placeholder="Scrivi una nota"></textarea>
+
+      <button id="saveContact" type="button">Salva contatto</button>
+      <p id="statusMessage"></p>
+    </section>
+
+    <section class="card">
+      <h2>Contatti salvati</h2>
+      <ul id="contactsList"></ul>
+    </section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
