@@ -73,6 +73,16 @@ button {
   margin-bottom: 12px;
 }
 
+.contact-photo {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+  margin-bottom: 10px;
+  border: 1px solid #ddd;
+}
+
 .contact-name {
   font-weight: 700;
   margin-bottom: 6px;

@@ -1,11 +1,13 @@
 const SUPABASE_URL = "https://zlqyqmsblobwelugqnij.supabase.co";
 const SUPABASE_KEY = "sb_publishable_thEIAybXnzRwz543iYtPSg_qAEQKw3z";
+const BUCKET_NAME = "contact-images";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const nameInput = document.getElementById("name");
 const emailInput = document.getElementById("email");
 const noteInput = document.getElementById("note");
+const photoInput = document.getElementById("photo");
 const saveButton = document.getElementById("saveContact");
 const contactsList = document.getElementById("contactsList");
 const statusMessage = document.getElementById("statusMessage");
@@ -19,6 +21,7 @@ function clearForm() {
   nameInput.value = "";
   emailInput.value = "";
   noteInput.value = "";
+  photoInput.value = "";
 }
 
 function renderContacts(data) {
@@ -33,7 +36,12 @@ function renderContacts(data) {
     const li = document.createElement("li");
     li.className = "contact-item";
 
+    const imageHtml = contact.photo_url
+      ? `<img class="contact-photo" src="${contact.photo_url}" alt="Foto di ${contact.name ?? "contatto"}">`
+      : "";
+
     li.innerHTML = `
+      ${imageHtml}
       <div class="contact-name">${contact.name ?? ""}</div>
       <div class="contact-meta">${contact.email ?? ""}</div>
       <div class="contact-note">${contact.note ?? ""}</div>
@@ -56,7 +64,7 @@ async function loadContacts() {
   console.log("LOAD ERROR:", error);
 
   if (error) {
-    setStatus("Errore nel caricamento dei contatti.", true);
+    setStatus(`Errore nel caricamento: ${error.message}`, true);
     return;
   }
 
@@ -64,10 +72,39 @@ async function loadContacts() {
   setStatus(`Caricati ${data.length} contatti.`);
 }
 
+async function uploadPhoto(file) {
+  if (!file) {
+    return null;
+  }
+
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+  const filePath = `public/${fileName}`;
+
+  const { error: uploadError } = await client.storage
+    .from(BUCKET_NAME)
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type
+    });
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = client.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
 async function createContact() {
   const name = nameInput.value.trim();
   const email = emailInput.value.trim();
   const note = noteInput.value.trim();
+  const file = photoInput.files[0];
 
   if (!name || !email) {
     setStatus("Nome ed email sono obbligatori.", true);
@@ -76,20 +113,28 @@ async function createContact() {
 
   setStatus("Salvataggio in corso...");
 
-  const { error } = await client
-    .from("contacts")
-    .insert([{ name, email, note }]);
+  try {
+    let photoUrl = null;
 
-  console.log("INSERT ERROR:", error);
+    if (file) {
+      photoUrl = await uploadPhoto(file);
+    }
 
-  if (error) {
+    const { error } = await client
+      .from("contacts")
+      .insert([{ name, email, note, photo_url: photoUrl }]);
+
+    if (error) {
+      throw error;
+    }
+
+    clearForm();
+    setStatus("Contatto salvato correttamente.");
+    await loadContacts();
+  } catch (error) {
+    console.error("CREATE ERROR:", error);
     setStatus(`Errore durante il salvataggio: ${error.message}`, true);
-    return;
   }
-
-  clearForm();
-  setStatus("Contatto salvato correttamente.");
-  await loadContacts();
 }
 
 async function deleteContact(id) {
@@ -99,8 +144,6 @@ async function deleteContact(id) {
     .from("contacts")
     .delete()
     .eq("id", id);
-
-  console.log("DELETE ERROR:", error);
 
   if (error) {
     setStatus(`Errore durante l'eliminazione: ${error.message}`, true);
